@@ -2,16 +2,19 @@
 import sqlite3 as sl
 import os
 import string
+import math
 #program doesent neccesarily need to be object oriented, just has some structs
 
 #path=str(os.getcwd+"/my-test.db").isfile()
-numUsers=6
-current_UserID = -1
-userCarts = [[['1332',3],['1337',2]],[['1337',5],['1339',1],['1351',1]],[],[],[],[]]
+signedIn = False
+current_UserID = None
+userCarts = [[['1332',3],['1337',2]],[['1337',5],['1339',1],['1351',1]],[],[],[],[['1337',20]]]
+
 #con = sl.connect('my-test.db')
 #reset = str(input("RESET DATABASE?(y/n)-->"))
-if (True):
-    con = sl.connect('my-test.db')
+con = sl.connect('my-test.db')
+reset = str(input("INIT NEW DATABASE?(y/n)-->"))
+if (reset=="y"):
     with con:
         con.execute("""
             CREATE TABLE BOOKS (
@@ -71,7 +74,8 @@ if (True):
         
         con.execute("""
             CREATE TABLE ENTRY (
-                order_Num INTEGER PRIMARY KEY,
+                entry_Num INTEGER PRIMARY KEY,
+                order_Num INTEGER,
                 ISBN INTEGER,
                 quantity INTEGER
             );
@@ -111,7 +115,7 @@ if (True):
     con.execute("INSERT INTO USERS values('JustinTimberlake','66 avalon street','JT@gmail.com',207002434194,3)")
     con.execute("INSERT INTO USERS values('RomeoJuliet','344 soar ave.','RJ@gmail.com',844070300767,4)")
     con.execute("INSERT INTO USERS values('HomerSimpson','22 jim road','HS@gmail.com',012954054731,5)")
-
+    
     #con.execute("INSERT INTO CART values(0,1)")
     #con.execute("INSERT INTO CART values(1,2)")
     #con.execute("INSERT INTO CART values(2,3)")
@@ -121,17 +125,20 @@ if (True):
 #    data = con.execute("SELECT * FROM BOOKS WHERE num_Pages<=1000")
 #    for row in data:
 #        print(row)
-
-
+tab = con.execute("SELECT COUNT(*) FROM USERS")
+numUsers = (tab.fetchall()[0][0])
+for x in range(numUsers-len(userCarts)):
+    userCarts.append([])
+print(str(numUsers) + " users")
 
 while True:
     if (current_UserID==0):
-        print("WELCOME TO YOUR BOOKSTORE\n owned by the CarlToad\n\nMainMenu\n\t1)Browse & add Books\n\t2)Cart\n\t3)Login & signup\n\t4)quit\n\t5)see Stats")
+        print("\n\nWELCOME TO YOUR BOOKSTORE\n owned by the CarlToad\n\nMainMenu\n\t1)Browse & add Books\n\t2)Cart\n\t3)Login & signup\n\t4)quit\n\t5)see Stats")
         table = con.execute("SELECT username FROM USERS WHERE user_ID={}".format(current_UserID))
         print("user:"+str(table.fetchmany()[0][0]))
     else:
         print("WELCOME TO OUR BOOKSTORE\n owned by the CarlToad\n\nMainMenu\n\t1)Browse & add Books\n\t2)Cart\n\t3)Login & signup\n\t4)quit")
-        if not (current_UserID == -1):
+        if (signedIn):
             table = con.execute("SELECT username FROM USERS WHERE user_ID={}".format(current_UserID))
             print("user:"+str(table.fetchmany()[0][0]))
         else: 
@@ -148,67 +155,153 @@ while True:
             
             if (searchFilt==1):
                 searchStr = str(input("book name-->")).lower()
-                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE name={}".format(searchStr))
+                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname,stock_Count FROM BOOKS WHERE name={}".format(searchStr))
                 with con:
                     print("output...")
-                    print('   name   |   ISBN   |  genre   |  price | pages | author name')
+                    print('   name   |   ISBN   |  genre   |  price | pages | author name | current Stock')
                     for row in table:
                         print(row)
                 
             elif (searchFilt==2):
                 searchStr = str(input("Authors Last Name-->"))
-                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE a_Lname={}".format(searchStr))
+                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname,stock_Count FROM BOOKS WHERE a_Lname={}".format(searchStr))
                 with con:
                     print("output...")
-                    print('   name   |   ISBN   |  genre   |  price | pages | author name')
+                    print('   name   |   ISBN   |  genre   |  price | pages | author name | current Stock')
                     for row in table:
                         print(row)
                 
             elif(searchFilt==3):
                 searchStr = str(input("genre[suspense, action, adventure, horror,sad]-->")).lower()
-                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE genre={}".format(searchStr))
+                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname,stock_Count FROM BOOKS WHERE genre={}".format(searchStr))
                 with con:
                     print("output...")
-                    print('   name   |   ISBN   |  genre   |  price | pages | author name')
+                    print('   name   |   ISBN   |  genre   |  price | pages | author name | current Stock')
                     for row in table:
                         print(row)
                 
             elif(searchFilt==4):
                 searchStr = str(input("ISBN(ex. '1334')-->"))
-                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE ISBN={}".format(searchStr))
+                table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname,stock_Count FROM BOOKS WHERE ISBN={}".format(searchStr))
                 with con:
                     print("output...")
-                    print('   name   |   ISBN   |  genre   |  price | pages | author name')
+                    print('   name   |   ISBN   |  genre   |  price | pages | author name | current Stock')
                     for row in table:
                         print(row)
             elif(searchFilt==5):
                 break
             else:
                 print("make a valid selection")
-            while (True):
+            while (signedIn):
                     print("\ninput the ISBN of a book(ex. '1123') and quantity(ex. 5) you would like to add to your cart if any or q to quit back to search")
                     isbnInp = str(input("ISBN-->"))
                     if isbnInp=="q":
                         break
                     quantInp = int(input("quantity-->"))
 #work in to add to cartTODO
-                    print("adding the following to your cart")
-                    table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE ISBN="+isbnInp)
-                    with con:
-                        print('   name   |   ISBN   |  genre   |  price | pages | author name')
-                        for row in table:
-                            print(row)
-                            print("\tx"+str(quantInp)+"\n")
+#check quantities
+                    
+                    if (True):
+                        print("adding the following to your cart")
+                        table = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE ISBN="+isbnInp)
+                        with con:
+                            print('   name   |   ISBN   |  genre   |  price | pages | author name | current Stock')
+                            for row in table:
+                                print(row)
+                                userCarts[current_UserID].append([row[1],quantInp])
+                                
+                                print("\tx"+str(quantInp)+"\n")
+                        #print(userCarts)        
+
+
+    if (sel==2):
+        #cartn
+        print("\nCart:")
+        #print(userCarts)
+        if not (signedIn):
+            print("not a user, please signup to add to cart")
+        else:    
+            for x in userCarts[current_UserID]:
+                #request the book by id
+                rec = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE ISBN={}".format(x[0]))
+                print(rec.fetchone())
+                print("\tx"+str(x[1]))
+            if (signedIn):
+                #user is signed in
+                checkout = (input("checkout y/n? or o for current orders-->"))
+                if (checkout=="y"):
+                    order = (input("new info n, or default d?-->"))
+                    new_address = con.execute("SELECT address FROM USERS WHERE user_ID={}".format(current_UserID)).fetchall()[0][0]
+                    new_address = "'"+new_address+"'"
+                    #print(new_address)
+                    new_card_Num = con.execute("SELECT card_Num FROM USERS WHERE user_ID={}".format(current_UserID)).fetchall()[0][0]
+                    #print(new_card_Num)
+                    if (order=="n"):
+                        new_address = str(input("address?-->"))
+                        #print(new_address)
+                        new_card_Num = int(input("credit card number?-->"))
                     
 
-            
-            
+                    print("the following orders can be placed due to stock\n-------------------------------------")
+                    flag=1
+                    orderCnt = con.execute("SELECT COUNT(*) FROM ORDERS").fetchall()[0][0]
+                    for f in userCarts[current_UserID]:
+                        rec = con.execute("SELECT name,ISBN,genre,sold_Price,num_Pages,a_fname,a_lname FROM BOOKS WHERE ISBN={} AND stock_Count>={}".format(f[0],f[1])).fetchone()
 
-            
+                        if not (rec==None):
+                            print(rec)
+                            print("\tx" + str(f[1]))
+                            flag=0
+                            entryCnt = con.execute("SELECT COUNT(*) FROM ENTRY").fetchall()[0][0]
+                            con.execute("INSERT INTO ENTRY VALUES ({},{},{},{})".format(entryCnt,orderCnt,f[0],f[1]))
+                            count = con.execute("SELECT stock_Count FROM BOOKS WHERE ISBN={} AND stock_Count>={}".format(f[0],f[1])).fetchone()
+                            update = con.execute("UPDATE BOOKS SET stock_Count=stock_Count - {}  WHERE ISBN={}".format(f[1],f[0]))
+                            #heres where we check if that took too many books out, and then email a publisher
+                            if ((count[0]-f[1])<10):
+                                print("STOCK BELOW 10: RESTOCKING")
+                                bookPub = con.execute("SELECT publisher_ID FROM BOOKS WHERE ISBN={}".format(f[0])).fetchone()
+                                pubName = con.execute("SELECT name FROM PUBLISHERS WHERE ID={}".format(bookPub[0])).fetchone()
+                                print("EMAILING PUBLISHER: {}".format(pubName))
+                                update = con.execute("UPDATE BOOKS SET stock_Count=stock_Count + 10  WHERE ISBN={}".format(f[0]))
+                                #update sunk cost
+                            
+                        else:
+                            print("unavailiable")
+                    userCarts[current_UserID]=[]
+                    print("\n-------------------------------------")
+                    if (flag==0):
+                        con.execute("INSERT INTO ORDERS VALUES ({},{},{},{})".format(orderCnt,current_UserID,new_card_Num,new_address))
+                        print("order complete: "+str(orderCnt))
+                    else:
+                        print("nothing to order")
+                    #order made, now for entries
+                    #print out all orders
+                    print("\n___________________________________")
+                    orderout = con.execute("SELECT * FROM ORDERS")
+                    entryout = con.execute("SELECT * FROM ENTRY")
+                    #with con:
+                    #    print("---All orders---")
+                    #    for o in orderout:
+                    #        print(o)
+                    #    print("---All entries---")
+                    #    for e in entryout:
+                    #        print(e)
+                    #now do work of subtracting from db, replacing if neccesary
+                if (checkout=="o"):
+                    print('Order Number|User ID|Card Number|Address')
+                    print("Your Orders:\n-----------")
+                    orderout2 = con.execute("SELECT * FROM ORDERS WHERE user_ID={}".format(current_UserID))
+                    with con:
+                        for o in orderout2:
+                            print(o)
+                    print("\n-----------\n")
+                
+
+
+
         
-    
-    if (sel==2):
-        break
+
+
     if (sel==3):
         #login signup
         print("select user from...")
@@ -227,15 +320,57 @@ while True:
             email = (input("email?-->"))
             card_Num = int(input("credit card number?-->"))
             #TODO, check for overlap and other users with the same email
-            con.execute("INSERT INTO USERS VALUES ({},{},{},{},{})".format(username,address,email,card_Num,numUsers))
-
-            user=numUsers
-            numUsers+=1
+            #con.execute("IF EXISTS (SELECT * FROM USERS WHERE email={})".format(email))
+            if (True):
+                con.execute("INSERT INTO USERS VALUES ({},{},{},{},{})".format(username,address,email,card_Num,numUsers))
+                user=numUsers
+                numUsers+=1
+                userCarts.append([])
+            else:
+                print("email already in use")
+                break
+        signedIn=True
         current_UserID=int(user)
     if (sel==4):
         break
-    if (sel==5 & current_UserID==0):
-        print("Admin functions")
+
+    if (sel==5):
+        if (current_UserID==0):
+            print("Admin information:\n----------------------------------\n")
+            #prints out sales information
+            print("sales vs expenditure:")
+            #sales vs expenditure(aggregate all entries with the iddference between sales price and stock price)
+            print("Spent:",end=' ')
+            expenditure = con.execute("SELECT SUM(stock_Price*stock_Count) FROM BOOKS")
+            with con:
+                for per in expenditure:
+                    print(per[0],end='.00$')
+            print("Earned:",end='')
+            expenditure = con.execute("SELECT SUM(BOOKS.sold_Price*ENTRY.quantity) FROM BOOKS RIGHT JOIN ENTRY ON BOOKS.ISBN=ENTRY.ISBN")
+            with con:
+                for per in expenditure:
+                    print(per[0],end='.00$\n')
+            print("Minus publisher Cut:",end='')
+            PublisherCut = con.execute("SELECT SUM(BOOKS.sold_Price*ENTRY.quantity)*(BOOKS.publisher_Cut*0.01) FROM BOOKS RIGHT JOIN ENTRY ON BOOKS.ISBN=ENTRY.ISBN")
+            with con:
+                for feb in PublisherCut:
+                    print(math.ceil(feb[0]),end='$\n')
+            print("\nsales per genre:")
+            #sales per genre(aggregate all entries sale price with the same genre)(this gets all the entries)
+            pergenre = con.execute("SELECT BOOKS.genre, SUM(BOOKS.sold_Price*ENTRY.quantity) FROM BOOKS RIGHT JOIN ENTRY ON BOOKS.ISBN=ENTRY.ISBN GROUP BY BOOKS.genre")
+            with con:
+                for fo in pergenre:
+                    print(fo[0],end='= ')
+                    print(fo[1],end='.00$\n')
+            print("\nsales per author:")
+            perAuth = con.execute("SELECT BOOKS.a_Fname,BOOKS.a_Lname, SUM(BOOKS.sold_Price*ENTRY.quantity) FROM BOOKS RIGHT JOIN ENTRY ON BOOKS.ISBN=ENTRY.ISBN GROUP BY BOOKS.a_Lname")
+            with con:
+                for au in perAuth:
+                    print(au[0],end=' ')
+                    print(au[1],end='= ')
+                    print(au[2],end='.00$\n')
+            #sales per author(aggregate all entries sale price with the same author)
+            #add and subtract book options
 
     
 
