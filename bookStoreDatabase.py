@@ -1,17 +1,12 @@
-#main file
+#main file, updated 11:10pm
 import sqlite3 as sl
 import os
 import string
 import math
-#program doesent neccesarily need to be object oriented, just has some structs
-
-#path=str(os.getcwd+"/my-test.db").isfile()
 signedIn = False
 current_UserID = None
 userCarts = [[['1332',3],['1337',2]],[['1337',5],['1339',1],['1351',1]],[],[],[],[['1337',20]]]
 
-#con = sl.connect('my-test.db')
-#reset = str(input("RESET DATABASE?(y/n)-->"))
 con = sl.connect('my-test.db')
 reset = str(input("INIT NEW DATABASE?(y/n)-->"))
 if (reset=="y"):
